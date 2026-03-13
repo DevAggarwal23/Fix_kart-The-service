@@ -1,3 +1,4 @@
+<<<<<<< HEAD
 # Dependencies
 node_modules/
 .pnp
@@ -48,3 +49,55 @@ firebase-export*/
 *.key
 .cache
 .temp
+=======
+# Dependencies
+node_modules/
+.pnp
+.pnp.js
+
+# Testing
+coverage/
+
+# Production
+dist/
+build/
+.firebase/
+
+# Environment files
+.env
+.env.local
+.env.development.local
+.env.test.local
+.env.production.local
+
+# IDE
+.idea/
+.vscode/
+*.swp
+*.swo
+*~
+
+# OS
+.DS_Store
+Thumbs.db
+
+# Logs
+npm-debug.log*
+yarn-debug.log*
+yarn-error.log*
+firebase-debug.log
+firestore-debug.log
+ui-debug.log
+
+# Firebase
+firebase-export*/
+
+# TypeScript
+*.tsbuildinfo
+
+# Misc
+*.pem
+*.key
+.cache
+.temp
+>>>>>>> 3ef1c884eb81bcb36571653e4e009423591eaf4b
