@@ -1,0 +1,206 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    
+    // ============================================
+    // HELPER FUNCTIONS
+    // ============================================
+    
+    // Check if user is authenticated
+    function isAuthenticated() {
+      return request.auth != null;
+    }
+    
+    // Check if user owns the resource
+    function isOwner(userId) {
+      return isAuthenticated() && request.auth.uid == userId;
+    }
+    
+    // Check file size (max 5MB for images, 10MB for documents)
+    function isValidImageSize() {
+      return request.resource.size < 5 * 1024 * 1024;
+    }
+    
+    function isValidDocumentSize() {
+      return request.resource.size < 10 * 1024 * 1024;
+    }
+    
+    // Check file type
+    function isImage() {
+      return request.resource.contentType.matches('image/.*');
+    }
+    
+    function isPDF() {
+      return request.resource.contentType == 'application/pdf';
+    }
+    
+    function isDocument() {
+      return isPDF() || 
+             request.resource.contentType == 'application/msword' ||
+             request.resource.contentType == 'application/vnd.openxmlformats-officedocument.wordprocessingml.document';
+    }
+    
+    // ============================================
+    // USER PROFILE IMAGES
+    // ============================================
+    
+    match /users/{userId}/profile/{fileName} {
+      // Owner can read their profile image
+      // Others can read for display purposes
+      allow read: if true;
+      
+      // Owner can upload/update their profile image
+      allow write: if isOwner(userId) && 
+                     isImage() && 
+                     isValidImageSize();
+    }
+    
+    // ============================================
+    // WORKER PROFILE IMAGES
+    // ============================================
+    
+    match /workers/{workerId}/profile/{fileName} {
+      // Anyone can read worker profile images (for customer display)
+      allow read: if true;
+      
+      // Worker can upload/update their profile image
+      allow write: if isOwner(workerId) && 
+                     isImage() && 
+                     isValidImageSize();
+    }
+    
+    // ============================================
+    // WORKER DOCUMENTS (ID, Certificates, etc.)
+    // ============================================
+    
+    match /workers/{workerId}/documents/{fileName} {
+      // Worker can read their documents
+      // Admins can read through Cloud Functions
+      allow read: if isOwner(workerId);
+      
+      // Worker can upload documents
+      allow write: if isOwner(workerId) && 
+                     (isImage() || isDocument()) && 
+                     isValidDocumentSize();
+    }
+    
+    // ============================================
+    // SERVICE IMAGES
+    // ============================================
+    
+    match /services/{serviceId}/{fileName} {
+      // Anyone can read service images
+      allow read: if true;
+      
+      // Only Cloud Functions (admins) can upload
+      allow write: if false;
+    }
+    
+    // ============================================
+    // CATEGORY IMAGES
+    // ============================================
+    
+    match /categories/{categoryId}/{fileName} {
+      // Anyone can read category images
+      allow read: if true;
+      
+      // Only Cloud Functions (admins) can upload
+      allow write: if false;
+    }
+    
+    // ============================================
+    // REVIEW IMAGES
+    // ============================================
+    
+    match /reviews/{bookingId}/{fileName} {
+      // Anyone can read review images (for approved reviews)
+      allow read: if true;
+      
+      // Authenticated users can upload review images
+      allow write: if isAuthenticated() && 
+                     isImage() && 
+                     isValidImageSize();
+    }
+    
+    // ============================================
+    // BOOKING IMAGES (Before/After, Issue photos)
+    // ============================================
+    
+    match /bookings/{bookingId}/customer/{fileName} {
+      // Booking parties can read
+      allow read: if isAuthenticated();
+      
+      // Customer can upload issue photos
+      allow write: if isAuthenticated() && 
+                     isImage() && 
+                     isValidImageSize();
+    }
+    
+    match /bookings/{bookingId}/worker/{fileName} {
+      // Booking parties can read
+      allow read: if isAuthenticated();
+      
+      // Worker can upload before/after photos
+      allow write: if isAuthenticated() && 
+                     isImage() && 
+                     isValidImageSize();
+    }
+    
+    // ============================================
+    // AI IMAGE ANALYSIS
+    // ============================================
+    
+    match /ai-analysis/{userId}/{fileName} {
+      // Owner can read/write
+      allow read, write: if isOwner(userId) && 
+                           isImage() && 
+                           isValidImageSize();
+    }
+    
+    // ============================================
+    // COMPLAINT ATTACHMENTS
+    // ============================================
+    
+    match /complaints/{complaintId}/{fileName} {
+      // Authenticated users can read/write their complaint attachments
+      allow read: if isAuthenticated();
+      
+      allow write: if isAuthenticated() && 
+                     (isImage() || isDocument()) && 
+                     isValidDocumentSize();
+    }
+    
+    // ============================================
+    // INVOICE PDFs (Generated)
+    // ============================================
+    
+    match /invoices/{bookingId}/{fileName} {
+      // Customer can read their invoice
+      allow read: if isAuthenticated();
+      
+      // Only Cloud Functions can create invoices
+      allow write: if false;
+    }
+    
+    // ============================================
+    // PROMOTIONAL BANNERS
+    // ============================================
+    
+    match /banners/{bannerId}/{fileName} {
+      // Anyone can read banners
+      allow read: if true;
+      
+      // Only Cloud Functions (admins) can upload
+      allow write: if false;
+    }
+    
+    // ============================================
+    // DEFAULT DENY
+    // ============================================
+    
+    // Deny all other paths
+    match /{allPaths=**} {
+      allow read, write: if false;
+    }
+  }
+}
